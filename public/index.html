@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudySync AI - Trợ lý Học tập Thông minh</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+    <header class="bg-indigo-600 text-white shadow-md">
+        <div class="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-xl font-bold">StudySync AI</h1>
+            <span class="text-xs bg-indigo-500 px-3 py-1 rounded-full">AI Lecture-to-Learning</span>
+        </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto px-4 py-8">
+        <div class="bg-white rounded-xl shadow-sm p-6 mb-8 border border-slate-100">
+            <h2 class="text-lg font-semibold mb-2 text-indigo-900">Tải lên file ghi âm bài giảng</h2>
+            <p class="text-sm text-slate-500 mb-4">Hỗ trợ các định dạng âm thanh (MP3, WAV, M4A,...)</p>
+            <form id="uploadForm" class="flex flex-col gap-4">
+                <input type="file" id="audioFile" accept="audio/*" class="border border-slate-200 p-3 rounded-lg text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                <button type="submit" id="submitBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 rounded-lg transition">Phân tích bài giảng với AI</button>
+            </form>
+            <div id="loading" class="hidden mt-4 text-center text-indigo-600 font-medium animate-pulse">Gemini AI đang nghe và hệ thống hóa bài giảng, vui lòng đợi trong giây lát...</div>
+        </div>
+
+        <div id="resultArea" class="space-y-6 hidden">
+            <div class="bg-white rounded-xl shadow-sm p-6 border border-slate-100">
+                <h3 class="text-md font-semibold text-indigo-900 mb-3">Kiến thức Trọng tâm & Tóm tắt</h3>
+                <p id="summaryText" class="text-slate-600 leading-relaxed whitespace-pre-line"></p>
+                <div id="keywordsArea" class="mt-4 flex flex-wrap gap-2"></div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm p-6 border border-slate-100">
+                <h3 class="text-md font-semibold text-indigo-900 mb-3">Câu hỏi ôn tập nhanh (Active Recall)</h3>
+                <div id="quizContainer" class="space-y-4"></div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const form = document.getElementById('uploadForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const loading = document.getElementById('loading');
+        const resultArea = document.getElementById('resultArea');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fileInput = document.getElementById('audioFile');
+            if (fileInput.files.length === 0) {
+                alert('Vui lòng chọn file âm thanh bài giảng!');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('audio', fileInput.files[0]);
+
+            loading.classList.remove('hidden');
+            resultArea.classList.add('hidden');
+            submitBtn.disabled = true;
+
+            try {
+                const response = await fetch('/api/process-lecture', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error);
+
+                document.getElementById('summaryText').textContent = data.summary;
+                
+                const kwArea = document.getElementById('keywordsArea');
+                kwArea.innerHTML = data.keywords.map(kw => `<span class="bg-indigo-50 text-indigo-700 text-xs px-3 py-1 rounded-full font-medium">#${kw}</span>`).join('');
+
+                const quizContainer = document.getElementById('quizContainer');
+                quizContainer.innerHTML = data.quiz.map((q, idx) => `
+                    <div class="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                        <p class="font-medium text-slate-800 mb-2">Câu ${idx+1}: ${q.question}</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm mb-3">
+                            ${q.options.map(opt => `<div class="p-2 bg-white rounded border border-slate-200">${opt}</div>`).join('')}
+                        </div>
+                        <p class="text-xs text-indigo-600 font-semibold bg-indigo-50 p-2 rounded inline-block">Đáp án: ${q.answer}</p>
+                    </div>
+                `).join('');
+
+                resultArea.classList.remove('hidden');
+            } catch (err) {
+                alert('Lỗi: ' + err.message);
+            } finally {
+                loading.classList.add('hidden');
+                submitBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
